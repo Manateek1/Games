@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flappy</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#f5f2e8; color:#1f1f1f; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    canvas { background:#c7e7ff; border:3px solid #1f1f1f; border-radius:10px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Flappy</h1>
+    <canvas id="c" width="360" height="480"></canvas>
+    <div id="status"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  let bird, pipes, score, alive, raf;
+
+  function reset() {
+    bird = {x: 80, y: 200, vy: 0};
+    pipes = [];
+    score = 0;
+    alive = true;
+    spawnPipe();
+    updateStatus();
+    if (raf) cancelAnimationFrame(raf);
+    loop();
+  }
+
+  function spawnPipe() {
+    const gap = 140;
+    const top = 40 + Math.random()*200;
+    pipes.push({x: c.width, top, gap});
+  }
+
+  function updateStatus() {
+    document.getElementById('status').textContent = 'Score: ' + score;
+  }
+
+  function flap() { if (alive) bird.vy = -6; }
+  window.addEventListener('keydown', e => { if (e.key === ' ') flap(); });
+  c.addEventListener('click', flap);
+
+  function loop() {
+    if (!alive) return;
+    bird.vy += 0.3;
+    bird.y += bird.vy;
+
+    if (bird.y > c.height || bird.y < 0) alive = false;
+
+    if (pipes.length === 0 || pipes[pipes.length-1].x < c.width - 180) spawnPipe();
+
+    for (const p of pipes) {
+      p.x -= 2.5;
+      if (!p.passed && p.x + 40 < bird.x) { score++; p.passed = true; updateStatus(); }
+      if (bird.x + 14 > p.x && bird.x - 14 < p.x + 40) {
+        if (bird.y - 14 < p.top || bird.y + 14 > p.top + p.gap) alive = false;
+      }
+    }
+    pipes = pipes.filter(p => p.x > -60);
+
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle = '#7cc6fe';
+    ctx.fillRect(0,0,c.width,c.height);
+
+    ctx.fillStyle = '#1f1f1f';
+    ctx.beginPath();
+    ctx.arc(bird.x, bird.y, 14, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#2d6a4f';
+    for (const p of pipes) {
+      ctx.fillRect(p.x, 0, 40, p.top);
+      ctx.fillRect(p.x, p.top + p.gap, 40, c.height - p.top - p.gap);
+    }
+
+    if (!alive) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '22px Trebuchet MS';
+      ctx.fillText('Game Over', 120, 240);
+    }
+  }
+
+  document.getElementById('restart').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

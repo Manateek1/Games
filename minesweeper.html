@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Minesweeper</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#f5f2e8; color:#1f1f1f; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    canvas { background:#fff; border:3px solid #1f1f1f; border-radius:10px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Minesweeper</h1>
+    <canvas id="c" width="400" height="400"></canvas>
+    <div id="status"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  const size = 40;
+  const rows = 10, cols = 10, mines = 12;
+  let grid, revealed, flagged, alive;
+
+  function reset() {
+    grid = Array.from({length: rows}, () => Array(cols).fill(0));
+    revealed = Array.from({length: rows}, () => Array(cols).fill(false));
+    flagged = Array.from({length: rows}, () => Array(cols).fill(false));
+    alive = true;
+
+    let placed = 0;
+    while (placed < mines) {
+      const x = Math.floor(Math.random()*cols);
+      const y = Math.floor(Math.random()*rows);
+      if (grid[y][x] === 'M') continue;
+      grid[y][x] = 'M';
+      placed++;
+    }
+
+    for (let y=0;y<rows;y++) for (let x=0;x<cols;x++) {
+      if (grid[y][x] === 'M') continue;
+      let count = 0;
+      for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++) {
+        const ny = y+dy, nx = x+dx;
+        if (ny>=0 && ny<rows && nx>=0 && nx<cols && grid[ny][nx] === 'M') count++;
+      }
+      grid[y][x] = count;
+    }
+
+    updateStatus();
+    draw();
+  }
+
+  function updateStatus() {
+    if (!alive) document.getElementById('status').textContent = 'Boom!';
+    else document.getElementById('status').textContent = 'Mines: ' + mines;
+  }
+
+  function reveal(x,y) {
+    if (!alive || revealed[y][x] || flagged[y][x]) return;
+    revealed[y][x] = true;
+    if (grid[y][x] === 'M') { alive = false; updateStatus(); draw(); return; }
+    if (grid[y][x] === 0) {
+      for (let dy=-1;dy<=1;dy++) for (let dx=-1;dx<=1;dx++) {
+        const ny = y+dy, nx = x+dx;
+        if (ny>=0 && ny<rows && nx>=0 && nx<cols) reveal(nx,ny);
+      }
+    }
+  }
+
+  c.addEventListener('click', (e) => {
+    const rect = c.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / size);
+    const y = Math.floor((e.clientY - rect.top) / size);
+    if (x>=0 && x<cols && y>=0 && y<rows) reveal(x,y);
+    draw();
+  });
+
+  c.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const rect = c.getBoundingClientRect();
+    const x = Math.floor((e.clientX - rect.left) / size);
+    const y = Math.floor((e.clientY - rect.top) / size);
+    if (x>=0 && x<cols && y>=0 && y<rows && !revealed[y][x]) {
+      flagged[y][x] = !flagged[y][x];
+      draw();
+    }
+  });
+
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    for (let y=0;y<rows;y++) for (let x=0;x<cols;x++) {
+      ctx.strokeStyle = '#1f1f1f';
+      ctx.strokeRect(x*size, y*size, size, size);
+      if (revealed[y][x]) {
+        ctx.fillStyle = '#e9e4d8';
+        ctx.fillRect(x*size, y*size, size, size);
+        if (grid[y][x] === 'M') {
+          ctx.fillStyle = '#d1495b';
+          ctx.beginPath();
+          ctx.arc(x*size+size/2, y*size+size/2, 10, 0, Math.PI*2);
+          ctx.fill();
+        } else if (grid[y][x] > 0) {
+          ctx.fillStyle = '#1f1f1f';
+          ctx.font = '16px Trebuchet MS';
+          ctx.fillText(grid[y][x], x*size+14, y*size+22);
+        }
+      } else {
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(x*size, y*size, size, size);
+        if (flagged[y][x]) {
+          ctx.fillStyle = '#5c7cfa';
+          ctx.fillRect(x*size+12, y*size+8, 6, 24);
+          ctx.fillStyle = '#5c7cfa';
+          ctx.beginPath();
+          ctx.moveTo(x*size+18, y*size+8);
+          ctx.lineTo(x*size+30, y*size+14);
+          ctx.lineTo(x*size+18, y*size+20);
+          ctx.fill();
+        }
+      }
+    }
+  }
+
+  document.getElementById('restart').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

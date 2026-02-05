@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Breakout</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#f5f2e8; color:#1f1f1f; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    canvas { background:#fff; border:3px solid #1f1f1f; border-radius:10px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Breakout</h1>
+    <canvas id="c" width="480" height="360"></canvas>
+    <div id="status"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  const rows = 5, cols = 8;
+  const brickW = 52, brickH = 16, gap = 6;
+  let bricks, paddle, ball, score, running, raf;
+
+  function reset() {
+    bricks = [];
+    for (let r=0;r<rows;r++) {
+      for (let col=0; col<cols; col++) {
+        bricks.push({x: 20 + col*(brickW+gap), y: 30 + r*(brickH+gap), alive: true});
+      }
+    }
+    paddle = {x: c.width/2 - 40, y: c.height - 22, w: 80, h: 10};
+    ball = {x: c.width/2, y: c.height - 40, vx: 3, vy: -3, r: 6};
+    score = 0;
+    running = true;
+    updateStatus();
+    if (raf) cancelAnimationFrame(raf);
+    loop();
+  }
+
+  function updateStatus() {
+    document.getElementById('status').textContent = 'Score: ' + score;
+  }
+
+  const keys = {};
+  window.addEventListener('keydown', e => keys[e.key] = true);
+  window.addEventListener('keyup', e => keys[e.key] = false);
+
+  function loop() {
+    if (!running) return;
+
+    if (keys['ArrowLeft']) paddle.x -= 5;
+    if (keys['ArrowRight']) paddle.x += 5;
+    paddle.x = Math.max(0, Math.min(c.width - paddle.w, paddle.x));
+
+    ball.x += ball.vx;
+    ball.y += ball.vy;
+
+    if (ball.x < ball.r || ball.x > c.width - ball.r) ball.vx *= -1;
+    if (ball.y < ball.r) ball.vy *= -1;
+
+    if (ball.y > c.height) { running = false; }
+
+    if (ball.x > paddle.x && ball.x < paddle.x + paddle.w &&
+        ball.y + ball.r > paddle.y && ball.y - ball.r < paddle.y + paddle.h) {
+      ball.vy *= -1;
+      ball.y = paddle.y - ball.r - 1;
+    }
+
+    for (const b of bricks) {
+      if (!b.alive) continue;
+      if (ball.x > b.x && ball.x < b.x + brickW && ball.y > b.y && ball.y < b.y + brickH) {
+        b.alive = false;
+        ball.vy *= -1;
+        score += 10;
+        updateStatus();
+      }
+    }
+
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+    ctx.fillStyle = '#1f1f1f';
+    ctx.fillRect(paddle.x, paddle.y, paddle.w, paddle.h);
+
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, ball.r, 0, Math.PI*2);
+    ctx.fill();
+
+    for (const b of bricks) {
+      if (!b.alive) continue;
+      ctx.fillStyle = '#d1495b';
+      ctx.fillRect(b.x, b.y, brickW, brickH);
+    }
+
+    if (!running) {
+      ctx.fillStyle = 'rgba(31,31,31,0.8)';
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '22px Trebuchet MS';
+      ctx.fillText('Game Over', 180, 190);
+    }
+  }
+
+  document.getElementById('restart').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

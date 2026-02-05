@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Asteroids</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#0b1020; color:#f1f1f1; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    canvas { background:#0b1020; border:3px solid #f1f1f1; border-radius:10px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Asteroids</h1>
+    <canvas id="c" width="520" height="380"></canvas>
+    <div id="status"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  let ship, asteroids, bullets, score, alive, raf;
+
+  function reset() {
+    ship = {x: c.width/2, y: c.height/2, angle: 0, vx: 0, vy: 0};
+    bullets = [];
+    asteroids = Array.from({length:6}, () => spawnAsteroid());
+    score = 0;
+    alive = true;
+    updateStatus();
+    if (raf) cancelAnimationFrame(raf);
+    loop();
+  }
+
+  function spawnAsteroid() {
+    const edge = Math.random() < 0.5 ? 0 : c.width;
+    return {
+      x: edge, y: Math.random()*c.height, r: 18 + Math.random()*18,
+      vx: (Math.random()*2-1)*1.5, vy: (Math.random()*2-1)*1.5
+    };
+  }
+
+  function updateStatus() {
+    document.getElementById('status').textContent = 'Score: ' + score;
+  }
+
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.key] = true;
+    if (e.key === ' ') shoot();
+  });
+  window.addEventListener('keyup', e => keys[e.key] = false);
+
+  function shoot() {
+    if (!alive) return;
+    bullets.push({
+      x: ship.x, y: ship.y,
+      vx: Math.cos(ship.angle)*5, vy: Math.sin(ship.angle)*5,
+      life: 60
+    });
+  }
+
+  function loop() {
+    if (!alive) return;
+
+    if (keys['ArrowLeft']) ship.angle -= 0.07;
+    if (keys['ArrowRight']) ship.angle += 0.07;
+    if (keys['ArrowUp']) {
+      ship.vx += Math.cos(ship.angle)*0.1;
+      ship.vy += Math.sin(ship.angle)*0.1;
+    }
+
+    ship.x += ship.vx; ship.y += ship.vy;
+    ship.vx *= 0.99; ship.vy *= 0.99;
+
+    wrap(ship);
+
+    for (const a of asteroids) {
+      a.x += a.vx; a.y += a.vy; wrap(a);
+      if (dist(ship, a) < a.r + 8) alive = false;
+    }
+
+    bullets = bullets.filter(b => b.life-- > 0);
+    for (const b of bullets) { b.x += b.vx; b.y += b.vy; }
+
+    for (const a of asteroids) {
+      for (const b of bullets) {
+        if (dist(a,b) < a.r) {
+          a.hit = true; b.life = 0; score += 10; updateStatus();
+        }
+      }
+    }
+    asteroids = asteroids.filter(a => !a.hit);
+    while (asteroids.length < 6) asteroids.push(spawnAsteroid());
+
+    draw();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function wrap(obj) {
+    if (obj.x < -20) obj.x = c.width + 20;
+    if (obj.x > c.width + 20) obj.x = -20;
+    if (obj.y < -20) obj.y = c.height + 20;
+    if (obj.y > c.height + 20) obj.y = -20;
+  }
+
+  function dist(a,b) { return Math.hypot(a.x-b.x, a.y-b.y); }
+
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+
+    ctx.strokeStyle = '#f1f1f1';
+    ctx.beginPath();
+    ctx.moveTo(ship.x + Math.cos(ship.angle)*12, ship.y + Math.sin(ship.angle)*12);
+    ctx.lineTo(ship.x + Math.cos(ship.angle+2.4)*12, ship.y + Math.sin(ship.angle+2.4)*12);
+    ctx.lineTo(ship.x + Math.cos(ship.angle-2.4)*12, ship.y + Math.sin(ship.angle-2.4)*12);
+    ctx.closePath();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#7cc6fe';
+    for (const a of asteroids) {
+      ctx.beginPath();
+      ctx.arc(a.x, a.y, a.r, 0, Math.PI*2);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle = '#f1f1f1';
+    for (const b of bullets) {
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    if (!alive) {
+      ctx.fillStyle = 'rgba(0,0,0,0.7)';
+      ctx.fillRect(0,0,c.width,c.height);
+      ctx.fillStyle = '#fff';
+      ctx.font = '22px Trebuchet MS';
+      ctx.fillText('Game Over', 210, 200);
+    }
+  }
+
+  document.getElementById('restart').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2048</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#f5f2e8; color:#1f1f1f; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    .board { width: 320px; height: 320px; background:#bbada0; border-radius:10px; padding:10px; display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; }
+    .tile { background:#cdc1b4; border-radius:8px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:24px; height:70px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>2048</h1>
+    <div id="status"></div>
+    <div class="board" id="board"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const boardEl = document.getElementById('board');
+  let grid, score;
+
+  function reset() {
+    grid = Array.from({length:4}, () => Array(4).fill(0));
+    score = 0;
+    addTile(); addTile();
+    draw();
+    updateStatus();
+  }
+
+  function updateStatus() {
+    document.getElementById('status').textContent = 'Score: ' + score;
+  }
+
+  function addTile() {
+    const empty = [];
+    for (let y=0;y<4;y++) for (let x=0;x<4;x++) if (!grid[y][x]) empty.push([x,y]);
+    if (!empty.length) return;
+    const [x,y] = empty[Math.floor(Math.random()*empty.length)];
+    grid[y][x] = Math.random() < 0.9 ? 2 : 4;
+  }
+
+  function slide(row) {
+    const arr = row.filter(v => v);
+    for (let i=0;i<arr.length-1;i++) {
+      if (arr[i] === arr[i+1]) {
+        arr[i] *= 2; score += arr[i]; arr[i+1] = 0;
+      }
+    }
+    const res = arr.filter(v => v);
+    while (res.length < 4) res.push(0);
+    return res;
+  }
+
+  function move(dir) {
+    const before = JSON.stringify(grid);
+    if (dir === 'left') {
+      for (let y=0;y<4;y++) grid[y] = slide(grid[y]);
+    } else if (dir === 'right') {
+      for (let y=0;y<4;y++) grid[y] = slide(grid[y].slice().reverse()).reverse();
+    } else if (dir === 'up') {
+      for (let x=0;x<4;x++) {
+        const col = slide([grid[0][x],grid[1][x],grid[2][x],grid[3][x]]);
+        for (let y=0;y<4;y++) grid[y][x] = col[y];
+      }
+    } else if (dir === 'down') {
+      for (let x=0;x<4;x++) {
+        const col = slide([grid[0][x],grid[1][x],grid[2][x],grid[3][x]].reverse()).reverse();
+        for (let y=0;y<4;y++) grid[y][x] = col[y];
+      }
+    }
+
+    if (before !== JSON.stringify(grid)) {
+      addTile();
+      updateStatus();
+      draw();
+    }
+  }
+
+  function color(val) {
+    const map = {
+      0:'#cdc1b4', 2:'#eee4da', 4:'#ede0c8', 8:'#f2b179', 16:'#f59563',
+      32:'#f67c5f', 64:'#f65e3b', 128:'#edcf72', 256:'#edcc61',
+      512:'#edc850', 1024:'#edc53f', 2048:'#edc22e'
+    };
+    return map[val] || '#3c3a32';
+  }
+
+  function draw() {
+    boardEl.innerHTML = '';
+    for (let y=0;y<4;y++) for (let x=0;x<4;x++) {
+      const val = grid[y][x];
+      const tile = document.createElement('div');
+      tile.className = 'tile';
+      tile.style.background = color(val);
+      tile.textContent = val ? val : '';
+      boardEl.appendChild(tile);
+    }
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft') move('left');
+    if (e.key === 'ArrowRight') move('right');
+    if (e.key === 'ArrowUp') move('up');
+    if (e.key === 'ArrowDown') move('down');
+  });
+
+  document.getElementById('restart').addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

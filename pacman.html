@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pacman</title>
+  <style>
+    body { font-family: "Trebuchet MS", Arial, sans-serif; background:#f5f2e8; color:#1f1f1f; display:flex; align-items:center; justify-content:center; min-height:100vh; margin:0; }
+    .wrap { text-align:center; }
+    canvas { background:#fff; border:3px solid #1f1f1f; border-radius:10px; }
+    button { margin-top:10px; padding:8px 12px; font-weight:700; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Pacman</h1>
+    <canvas id="c" width="380" height="380"></canvas>
+    <div id="status"></div>
+    <button id="restart">Restart</button>
+  </div>
+
+<script>
+(() => {
+  const raw = [
+    "WWWWWWWWWWWWWWWWWWW",
+    "W........W........W",
+    "W.WWWW.W.W.W.WWWW.W",
+    "W.W......W......W.W",
+    "W.W.WWWWWWWWW.W.W.W",
+    "W.....W...W.....W.W",
+    "WWW.W.W.W.W.W.W.WWW",
+    "W...W.W.W.W.W.W...W",
+    "W.WWW.W.W.W.W.WWW.W",
+    "W.................W",
+    "W.WWW.W.W.W.W.WWW.W",
+    "W...W.W.W.W.W.W...W",
+    "WWW.W.W.W.W.W.W.WWW",
+    "W.....W...W.....W.W",
+    "W.W.WWWWWWWWW.W.W.W",
+    "W.W......W......W.W",
+    "W.WWWW.W.W.W.WWWW.W",
+    "W........W........W",
+    "WWWWWWWWWWWWWWWWWWW"
+  ];
+
+  const grid = raw.map(r => r.split(''));
+  const h = grid.length;
+  const w = grid[0].length;
+  const c = document.getElementById('c');
+  const ctx = c.getContext('2d');
+  const size = 20;
+  let pac, ghost, dir, nextDir, pellets, alive, won, tickId, score;
+
+  function reset() {
+    pac = {x:1,y:1};
+    ghost = {x:w-2,y:h-2, dir:{x:-1,y:0}};
+    dir = {x:1,y:0};
+    nextDir = {x:1,y:0};
+    pellets = 0;
+    score = 0;
+    alive = true;
+    won = false;
+
+    for (let y=0;y<h;y++) {
+      for (let x=0;x<w;x++) {
+        if (grid[y][x] === '.') pellets++;
+      }
+    }
+
+    clearInterval(tickId);
+    tickId = setInterval(tick, 120);
+    updateStatus();
+    draw();
+  }
+
+  function updateStatus() {
+    const status = document.getElementById('status');
+    if (!alive) status.textContent = 'Game Over';
+    else if (won) status.textContent = 'You win! Score: ' + score;
+    else status.textContent = 'Score: ' + score + ' | Pellets: ' + pellets;
+  }
+
+  function isWall(x,y) { return grid[y][x] === 'W'; }
+
+  function moveIfPossible(pos, d) {
+    const nx = pos.x + d.x;
+    const ny = pos.y + d.y;
+    if (nx < 0 || ny < 0 || nx >= w || ny >= h) return pos;
+    if (isWall(nx,ny)) return pos;
+    return {x:nx,y:ny};
+  }
+
+  function tick() {
+    if (!alive || won) return;
+
+    const tryNext = moveIfPossible(pac, nextDir);
+    if (tryNext.x !== pac.x || tryNext.y !== pac.y) dir = nextDir;
+    pac = moveIfPossible(pac, dir);
+
+    if (grid[pac.y][pac.x] === '.') {
+      grid[pac.y][pac.x] = ' ';
+      pellets--;
+      score += 10;
+      if (pellets === 0) won = true;
+    }
+
+    ghost = ghostMove();
+
+    if (pac.x === ghost.x && pac.y === ghost.y) {
+      alive = false;
+    }
+
+    updateStatus();
+    draw();
+  }
+
+  function ghostMove() {
+    const options = [
+      {x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}
+    ].filter(d => !isWall(ghost.x + d.x, ghost.y + d.y));
+
+    let best = options[0];
+    let bestDist = Infinity;
+
+    for (const d of options) {
+      const nx = ghost.x + d.x;
+      const ny = ghost.y + d.y;
+      const dist = Math.abs(nx - pac.x) + Math.abs(ny - pac.y);
+      if (dist < bestDist) { bestDist = dist; best = d; }
+    }
+
+    const canReverse = options.length === 1;
+    const sameAsReverse = best.x === -ghost.dir.x && best.y === -ghost.dir.y;
+
+    let chosen = best;
+    if (!canReverse && sameAsReverse && options.length > 1) {
+      chosen = options[Math.floor(Math.random() * options.length)];
+    }
+
+    ghost.dir = chosen;
+    return {x: ghost.x + chosen.x, y: ghost.y + chosen.y, dir: ghost.dir};
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,c.width,c.height);
+
+    for (let y=0;y<h;y++) {
+      for (let x=0;x<w;x++) {
+        const cell = grid[y][x];
+        if (cell === 'W') {
+          ctx.fillStyle = '#1f1f1f';
+          ctx.fillRect(x*size, y*size, size, size);
+        } else {
+          ctx.fillStyle = '#fff';
+          ctx.fillRect(x*size, y*size, size, size);
+          if (cell === '.') {
+            ctx.fillStyle = '#d1495b';
+            ctx.beginPath();
+            ctx.arc(x*size + size/2, y*size + size/2, 3, 0, Math.PI*2);
+            ctx.fill();
+          }
+        }
+      }
+    }
+
+    ctx.fillStyle = '#f7c548';
+    ctx.beginPath();
+    ctx.arc(pac.x*size + size/2, pac.y*size + size/2, 7, 0, Math.PI*2);
+    ctx.fill();
+
+    ctx.fillStyle = '#5c7cfa';
+    ctx.beginPath();
+    ctx.arc(ghost.x*size + size/2, ghost.y*size + size/2, 7, 0, Math.PI*2);
+    ctx.fill();
+  }
+
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowUp') nextDir = {x:0,y:-1};
+    if (e.key === 'ArrowDown') nextDir = {x:0,y:1};
+    if (e.key === 'ArrowLeft') nextDir = {x:-1,y:0};
+    if (e.key === 'ArrowRight') nextDir = {x:1,y:0};
+  });
+
+  document.getElementById('restart').addEventListener('click', () => {
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++) grid[y][x] = raw[y][x];
+    reset();
+  });
+
+  reset();
+})();
+</script>
+</body>
+</html>
