@@ -13,6 +13,8 @@ const difficultyConfig = {
   hard: { ballSpeed: 320, aiSpeed: 300 },
 };
 
+const MAX_BALL_SPEED = 640;
+
 export const PongNeon = ({
   difficulty,
   mode,
@@ -43,6 +45,7 @@ export const PongNeon = ({
     const fpsMeter = new RollingFps();
     const random = seededRandom(seed);
     const config = difficultyConfig[difficulty];
+    const touchPreferred = window.matchMedia("(pointer: coarse)").matches;
 
     const paddleHeight = 110;
     const paddleWidth = 14;
@@ -135,8 +138,15 @@ export const PongNeon = ({
         onPauseToggle();
       }
 
+      const p1KeyboardDirection = (keyboard.leftDown ? 1 : 0) - (keyboard.leftUp ? 1 : 0);
+      const p1TouchDirection =
+        touchPreferred ? (input.isDown("down") ? 1 : 0) - (input.isDown("up") ? 1 : 0) : 0;
       const p1Direction =
-        (keyboard.leftDown || input.isDown("down") ? 1 : 0) - (keyboard.leftUp || input.isDown("up") ? 1 : 0);
+        mode === "single"
+          ? (keyboard.leftDown || input.isDown("down") ? 1 : 0) - (keyboard.leftUp || input.isDown("up") ? 1 : 0)
+          : p1KeyboardDirection !== 0
+            ? p1KeyboardDirection
+            : p1TouchDirection;
       movePaddle(left, p1Direction, 360, dt);
 
       if (mode === "single") {
@@ -144,9 +154,10 @@ export const PongNeon = ({
         const aiDirection = ball.y > center + 8 ? 1 : ball.y < center - 8 ? -1 : 0;
         movePaddle(right, aiDirection, config.aiSpeed, dt);
       } else {
-        const p2Direction =
-          (keyboard.rightDown || input.isDown("action2") ? 1 : 0) -
-          (keyboard.rightUp || input.isDown("action") ? 1 : 0);
+        const p2KeyboardDirection = (keyboard.rightDown ? 1 : 0) - (keyboard.rightUp ? 1 : 0);
+        const p2TouchDirection =
+          touchPreferred ? (input.isDown("action2") ? 1 : 0) - (input.isDown("action") ? 1 : 0) : 0;
+        const p2Direction = p2KeyboardDirection !== 0 ? p2KeyboardDirection : p2TouchDirection;
         movePaddle(right, p2Direction, 360, dt);
       }
 
@@ -162,13 +173,14 @@ export const PongNeon = ({
       const hitLeft =
         ball.x - ball.r <= 30 + paddleWidth &&
         ball.x + ball.r >= 30 &&
-        ball.y >= left.y &&
-        ball.y <= left.y + paddleHeight;
+        ball.y + ball.r >= left.y &&
+        ball.y - ball.r <= left.y + paddleHeight;
 
       if (hitLeft && ball.vx < 0) {
         const offset = (ball.y - (left.y + paddleHeight * 0.5)) / (paddleHeight * 0.5);
-        ball.vx = Math.abs(ball.vx) * 1.04;
-        ball.vy += offset * 140;
+        ball.x = 30 + paddleWidth + ball.r + 0.5;
+        ball.vx = Math.min(Math.abs(ball.vx) * 1.04 + 8, MAX_BALL_SPEED);
+        ball.vy = clamp(ball.vy + offset * 140, -420, 420);
         rally += 1;
         longestRally = Math.max(longestRally, rally);
         audio.hit();
@@ -177,13 +189,14 @@ export const PongNeon = ({
       const hitRight =
         ball.x + ball.r >= WIDTH - 30 - paddleWidth &&
         ball.x - ball.r <= WIDTH - 30 &&
-        ball.y >= right.y &&
-        ball.y <= right.y + paddleHeight;
+        ball.y + ball.r >= right.y &&
+        ball.y - ball.r <= right.y + paddleHeight;
 
       if (hitRight && ball.vx > 0) {
         const offset = (ball.y - (right.y + paddleHeight * 0.5)) / (paddleHeight * 0.5);
-        ball.vx = -Math.abs(ball.vx) * 1.04;
-        ball.vy += offset * 140;
+        ball.x = WIDTH - 30 - paddleWidth - ball.r - 0.5;
+        ball.vx = -Math.min(Math.abs(ball.vx) * 1.04 + 8, MAX_BALL_SPEED);
+        ball.vy = clamp(ball.vy + offset * 140, -420, 420);
         rally += 1;
         longestRally = Math.max(longestRally, rally);
         audio.hit();

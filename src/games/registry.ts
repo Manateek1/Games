@@ -313,8 +313,8 @@ export const gameRegistry: GameDefinition[] = [
     shortDescription: "Classic pong with single-player and local versus.",
     description: "Play against adaptive AI or switch to local duel mode for two-player battles.",
     controls: [
-      "P1: W/S or Up/Down",
-      "P2 Duel: ArrowUp/ArrowDown",
+      "Single: W/S or Up/Down (left paddle)",
+      "Duel: P1 W/S, P2 ArrowUp/ArrowDown",
       "Mobile Duel: P1 Up/Down + P2 Up/Down buttons",
     ],
     tutorial: [
