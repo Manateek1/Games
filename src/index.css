@@ -1,0 +1,170 @@
+﻿@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Rajdhani:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg-0: #030811;
+  --bg-1: #060d22;
+  --bg-2: #0a1436;
+  --text-main: #def8ff;
+  --text-soft: #9bc8da;
+}
+
+:root[data-theme="sunset"] {
+  --bg-0: #12080b;
+  --bg-1: #2a0f16;
+  --bg-2: #411726;
+  --text-main: #ffe9dc;
+  --text-soft: #f6bfa1;
+}
+
+:root[data-theme="matrix"] {
+  --bg-0: #050b08;
+  --bg-1: #0b1c15;
+  --bg-2: #133025;
+  --text-main: #d8ffe9;
+  --text-soft: #87e7b0;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "Rajdhani", "Trebuchet MS", sans-serif;
+  background: radial-gradient(circle at 10% 0%, rgba(72, 255, 233, 0.12), transparent 40%),
+    radial-gradient(circle at 90% 0%, rgba(255, 137, 74, 0.12), transparent 42%),
+    linear-gradient(180deg, var(--bg-0), var(--bg-1), var(--bg-2));
+  color: var(--text-main);
+}
+
+.font-display {
+  font-family: "Orbitron", "Eurostile", sans-serif;
+}
+
+.arcade-kicker {
+  @apply text-xs uppercase tracking-[0.34em] text-cyan-100/70;
+}
+
+.arcade-card {
+  @apply rounded-2xl border border-cyan-300/20 bg-[#08102a]/90 p-4;
+}
+
+.arcade-btn-primary {
+  @apply rounded-lg bg-cyan-300 px-5 py-3 font-semibold text-[#03252c] transition hover:-translate-y-0.5 hover:bg-cyan-200;
+}
+
+.arcade-btn-secondary {
+  @apply rounded-lg border border-cyan-300/35 bg-transparent px-5 py-3 font-semibold text-cyan-100 transition hover:border-cyan-100 hover:bg-cyan-200/10;
+}
+
+.touch-btn {
+  @apply rounded-lg border border-cyan-300/35 bg-[#0c1534] px-3 py-3 text-center text-cyan-100 active:bg-cyan-300/20;
+}
+
+.scanlines {
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 100% 3px;
+  mix-blend-mode: screen;
+}
+
+.arcade-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(90, 250, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(90, 250, 255, 0.08) 1px, transparent 1px);
+  background-size: 34px 34px;
+  transform: perspective(620px) rotateX(54deg) translateY(50%);
+  transform-origin: center;
+  opacity: 0.5;
+}
+
+.arcade-grid-motion {
+  animation: gridScroll 8s linear infinite;
+}
+
+.arcade-orb {
+  position: absolute;
+  width: 420px;
+  height: 420px;
+  border-radius: 999px;
+  left: calc(50% - 210px);
+  top: calc(50% - 200px);
+  background: radial-gradient(circle, rgba(88, 255, 237, 0.24) 0%, rgba(88, 255, 237, 0) 70%);
+  filter: blur(6px);
+}
+
+.arcade-orb-motion {
+  animation: orbFloat 6s ease-in-out infinite;
+}
+
+.confetti {
+  position: absolute;
+  top: -16px;
+  width: 10px;
+  height: 14px;
+  background: linear-gradient(180deg, #47fff1, #ff8f68);
+  animation: confettiFall 1.4s linear forwards;
+}
+
+@keyframes confettiFall {
+  0% {
+    transform: translateY(-10px) rotate(0deg);
+    opacity: 0;
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(460px) rotate(380deg);
+    opacity: 0;
+  }
+}
+
+@keyframes gridScroll {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 0 34px, 34px 0;
+  }
+}
+
+@keyframes orbFloat {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(18px, -14px) scale(1.05);
+  }
+}
+
+@keyframes pageEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reduced-motion *,
+.reduced-motion *::before,
+.reduced-motion *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
