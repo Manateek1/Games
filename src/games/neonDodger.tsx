@@ -218,6 +218,7 @@ export const NeonDodger = ({
     };
 
     let previous = performance.now();
+    let raf = 0;
 
     const frame = (now: number): void => {
       const dt = Math.min(0.033, (now - previous) / 1000);
@@ -238,14 +239,14 @@ export const NeonDodger = ({
       }
 
       if (!endedRef.current) {
-        requestAnimationFrame(frame);
+        raf = requestAnimationFrame(frame);
       }
     };
 
-    const id = requestAnimationFrame(frame);
+    raf = requestAnimationFrame(frame);
 
     return () => {
-      cancelAnimationFrame(id);
+      cancelAnimationFrame(raf);
     };
   }, [difficulty, seed, settings.graphicsQuality, input, onFps, onGameOver, onPauseToggle, onScore, audio]);
 

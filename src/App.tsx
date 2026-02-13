@@ -10,7 +10,6 @@ import { SettingsModal } from "./components/SettingsModal";
 import { evaluateAchievements } from "./engine/achievements";
 import { pickDailyChallenge } from "./engine/daily";
 import {
-  defaultSettings,
   getBestScore,
   loadProgress,
   loadSettings,
@@ -27,6 +26,10 @@ import type { Difficulty, GameGenre } from "./types/arcade";
 type Screen = "home" | "library" | "detail" | "play";
 
 const randomSeed = (): number => Math.floor(Math.random() * 2_000_000_000);
+const preferredDifficulty = (difficulties: Difficulty[]): Difficulty =>
+  difficulties.includes("normal") ? "normal" : difficulties[0];
+const defaultModeForGame = (game: (typeof gameRegistry)[number]): string =>
+  game.defaultMode ?? game.modes?.[0]?.id ?? "single";
 
 function App(): React.JSX.Element {
   const [settings, setSettings] = useState(loadSettings);
@@ -64,15 +67,6 @@ function App(): React.JSX.Element {
   }, [settings.theme, settings.reducedMotion]);
 
   useEffect(() => {
-    const selectedMode = selectedGame.defaultMode ?? selectedGame.modes?.[0]?.id ?? "single";
-    setMode(selectedMode);
-
-    if (!selectedGame.difficulties.includes(difficulty)) {
-      setDifficulty(selectedGame.difficulties[0]);
-    }
-  }, [selectedGame, difficulty]);
-
-  useEffect(() => {
     if (!toast) {
       return;
     }
@@ -96,7 +90,14 @@ function App(): React.JSX.Element {
   const bestScore = getBestScore(progress, selectedGame.id, difficulty);
 
   const openGame = (gameId: string): void => {
-    setSelectedGameId(gameId);
+    const targetGame = gameMap.get(gameId) ?? gameRegistry[0];
+    setSelectedGameId(targetGame.id);
+    setDifficulty((current) =>
+      targetGame.difficulties.includes(current) ? current : preferredDifficulty(targetGame.difficulties),
+    );
+    setMode((current) =>
+      targetGame.modes?.some((item) => item.id === current) ? current : defaultModeForGame(targetGame),
+    );
     setScreen("detail");
     setDailyRun(false);
   };
@@ -110,8 +111,8 @@ function App(): React.JSX.Element {
   const startDaily = (): void => {
     setSelectedGameId(daily.gameId);
     const targetGame = gameMap.get(daily.gameId) ?? gameRegistry[0];
-    setDifficulty(targetGame.difficulties.includes("normal") ? "normal" : targetGame.difficulties[0]);
-    setMode(targetGame.defaultMode ?? targetGame.modes?.[0]?.id ?? "single");
+    setDifficulty(preferredDifficulty(targetGame.difficulties));
+    setMode(defaultModeForGame(targetGame));
     setRunSeed(daily.seed);
     setDailyRun(true);
     setScreen("play");

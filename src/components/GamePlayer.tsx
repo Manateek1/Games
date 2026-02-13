@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AudioManager } from "../engine/audio";
 import { InputManager } from "../engine/input";
 import { TouchControls } from "./TouchControls";
@@ -31,8 +31,8 @@ export const GamePlayer = ({
   onQuit,
   onComplete,
 }: GamePlayerProps): React.JSX.Element => {
-  const inputRef = useRef(new InputManager());
-  const audioRef = useRef(new AudioManager());
+  const [input] = useState(() => new InputManager());
+  const [audio] = useState(() => new AudioManager());
   const submittedRef = useRef(false);
 
   const [runId, setRunId] = useState(0);
@@ -43,32 +43,18 @@ export const GamePlayer = ({
   const [finalResult, setFinalResult] = useState<GameResult | null>(null);
 
   useEffect(() => {
-    setTutorialOpen(tutorialOpenByDefault);
-  }, [tutorialOpenByDefault, game.id]);
-
-  useEffect(() => {
-    const input = inputRef.current;
     input.attach();
-    const interval = window.setInterval(() => {
-      if (input.consumePress("pause")) {
-        setPaused((value) => !value);
-      }
-    }, 32);
-
     return () => {
-      window.clearInterval(interval);
       input.detach();
     };
-  }, []);
+  }, [input]);
 
   useEffect(() => {
-    const audio = audioRef.current;
     audio.setEnabled(settings.sound);
     audio.setMusicEnabled(settings.music);
-  }, [settings.sound, settings.music]);
+  }, [settings.sound, settings.music, audio]);
 
   useEffect(() => {
-    const audio = audioRef.current;
     if (!settings.music) {
       audio.stopMusic();
       return;
@@ -79,13 +65,13 @@ export const GamePlayer = ({
     } else {
       audio.stopMusic();
     }
-  }, [settings.music, paused, tutorialOpen, finalResult, seed]);
+  }, [settings.music, paused, tutorialOpen, finalResult, seed, audio]);
 
   useEffect(() => {
     return () => {
-      audioRef.current.dispose();
+      audio.dispose();
     };
-  }, []);
+  }, [audio]);
 
   useEffect(() => {
     if (!finalResult || submittedRef.current) {
@@ -109,17 +95,24 @@ export const GamePlayer = ({
   const dismissTutorial = async (): Promise<void> => {
     onTutorialDismiss();
     setTutorialOpen(false);
-    await audioRef.current.unlock();
-    audioRef.current.ui();
+    await audio.unlock();
+    audio.ui();
   };
 
-  const componentKey = useMemo(() => `${game.id}-${difficulty}-${mode}-${seed}-${runId}`, [
-    game.id,
-    difficulty,
-    mode,
-    seed,
-    runId,
-  ]);
+  const handlePauseToggle = useCallback(() => {
+    setPaused((value) => !value);
+  }, []);
+
+  const handleGameOver = useCallback(
+    (result: GameResult) => {
+      setFinalResult((current) => current ?? result);
+      setPaused(true);
+      audio.hit();
+    },
+    [audio],
+  );
+
+  const componentKey = `${game.id}-${difficulty}-${mode}-${seed}-${runId}`;
   const GameComponent = game.component;
 
   return (
@@ -144,7 +137,7 @@ export const GamePlayer = ({
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="arcade-btn-secondary px-4 py-2" onClick={() => setPaused((value) => !value)}>
+          <button type="button" className="arcade-btn-secondary px-4 py-2" onClick={handlePauseToggle}>
             {paused ? "Resume" : "Pause"}
           </button>
           <button type="button" className="arcade-btn-secondary px-4 py-2" onClick={restart}>
@@ -165,16 +158,12 @@ export const GamePlayer = ({
           seed={seed}
           settings={settings}
           paused={effectivePause}
-          input={inputRef.current}
-          audio={audioRef.current}
+          input={input}
+          audio={audio}
           onScore={setScore}
           onFps={setFps}
-          onPauseToggle={() => setPaused((value) => !value)}
-          onGameOver={(result) => {
-            setFinalResult(result);
-            setPaused(true);
-            audioRef.current.hit();
-          }}
+          onPauseToggle={handlePauseToggle}
+          onGameOver={handleGameOver}
         />
 
         {paused && !finalResult && !tutorialOpen && (
@@ -271,8 +260,8 @@ export const GamePlayer = ({
 
       {game.usesCanvas && (
         <TouchControls
-          input={inputRef.current}
-          onPause={() => setPaused((value) => !value)}
+          input={input}
+          onPause={handlePauseToggle}
           mode={game.id === "pong-neon" && mode === "duel" ? "pong-duel" : "default"}
         />
       )}

@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { seededRandom } from "../engine/math";
 import type { GameComponentProps } from "../types/arcade";
 
@@ -9,12 +9,27 @@ interface Card {
   flipped: boolean;
 }
 
-const symbols = ["▲", "◆", "◉", "☀", "✦", "⬢", "✚", "☯", "✿", "◈", "✪", "✺"];
+type MatchStatus = "playing" | "won" | "lost";
+
+const symbols = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"];
 
 const configByDifficulty = {
   easy: { pairs: 8, time: 130, columns: 4 },
   normal: { pairs: 10, time: 115, columns: 5 },
   hard: { pairs: 12, time: 95, columns: 6 },
+};
+
+const createDeck = (seed: number, pairs: number): Card[] => {
+  const random = seededRandom(seed);
+  const picked = [...symbols].sort(() => random() - 0.5).slice(0, pairs);
+  return [...picked, ...picked]
+    .map((symbol, index) => ({
+      id: `${symbol}-${index}`,
+      symbol,
+      matched: false,
+      flipped: false,
+    }))
+    .sort(() => random() - 0.5);
 };
 
 export const MemoryMatch = ({
@@ -27,43 +42,21 @@ export const MemoryMatch = ({
   onGameOver,
 }: GameComponentProps): React.JSX.Element => {
   const config = configByDifficulty[difficulty];
-  const [cards, setCards] = useState<Card[]>([]);
+
+  const [cards, setCards] = useState<Card[]>(() => createDeck(seed, config.pairs));
   const [open, setOpen] = useState<number[]>([]);
   const [timeLeft, setTimeLeft] = useState(config.time);
   const [moves, setMoves] = useState(0);
   const [score, setScore] = useState(0);
   const [combo, setCombo] = useState(0);
   const [confetti, setConfetti] = useState<number[]>([]);
-  const [resolved, setResolved] = useState(false);
+  const [status, setStatus] = useState<MatchStatus>("playing");
 
-  const matchedCount = useMemo(
-    () => cards.reduce((count, card) => count + (card.matched ? 1 : 0), 0),
-    [cards],
-  );
+  const scoreRef = useRef(score);
+  const timeoutRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const random = seededRandom(seed);
-    const picked = [...symbols].sort(() => random() - 0.5).slice(0, config.pairs);
-    const deck = [...picked, ...picked]
-      .map((symbol, index) => ({
-        id: `${symbol}-${index}`,
-        symbol,
-        matched: false,
-        flipped: false,
-      }))
-      .sort(() => random() - 0.5);
-
-    setCards(deck);
-    setOpen([]);
-    setTimeLeft(config.time);
-    setMoves(0);
-    setScore(0);
-    setCombo(0);
-    setResolved(false);
-    setConfetti([]);
-  }, [difficulty, seed, config.pairs, config.time]);
-
-  useEffect(() => {
+    scoreRef.current = score;
     onScore(score);
   }, [score, onScore]);
 
@@ -74,35 +67,28 @@ export const MemoryMatch = ({
   }, [paused, onFps]);
 
   useEffect(() => {
-    if (paused || resolved) {
+    if (paused || status !== "playing") {
       return;
     }
+
     const timer = window.setInterval(() => {
-      setTimeLeft((value) => Math.max(0, value - 1));
+      setTimeLeft((value) => {
+        const next = Math.max(0, value - 1);
+        if (next === 0) {
+          setStatus((current) => {
+            if (current !== "playing") {
+              return current;
+            }
+            onGameOver({ score: scoreRef.current, won: false });
+            return "lost";
+          });
+        }
+        return next;
+      });
     }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [paused, resolved]);
-
-  useEffect(() => {
-    if (resolved) {
-      return;
-    }
-
-    if (matchedCount === cards.length && cards.length > 0) {
-      setResolved(true);
-      setConfetti(Array.from({ length: 24 }, (_, index) => index));
-      const finalScore = score + timeLeft * 8;
-      setScore(finalScore);
-      onGameOver({ score: finalScore, won: true });
-      return;
-    }
-
-    if (timeLeft <= 0 && cards.length > 0) {
-      setResolved(true);
-      onGameOver({ score, won: false });
-    }
-  }, [cards.length, matchedCount, onGameOver, resolved, score, timeLeft]);
+  }, [paused, status, onGameOver]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -114,8 +100,16 @@ export const MemoryMatch = ({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onPauseToggle]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
   const revealCard = (index: number): void => {
-    if (paused || resolved) {
+    if (paused || status !== "playing") {
       return;
     }
 
@@ -140,17 +134,37 @@ export const MemoryMatch = ({
     const second = nextCards[b];
 
     if (first.symbol === second.symbol) {
-      setCards((prev) =>
-        prev.map((item, idx) => (idx === a || idx === b ? { ...item, matched: true } : item)),
+      const nextCombo = combo + 1;
+      const gained = 80 + nextCombo * 15;
+      const matchedCards = nextCards.map((item, idx) =>
+        idx === a || idx === b ? { ...item, matched: true } : item,
       );
+      const solved = matchedCards.every((item) => item.matched);
+
+      setCards(matchedCards);
       setOpen([]);
-      setCombo((value) => value + 1);
-      setScore((value) => value + 80 + combo * 15);
+      setCombo(nextCombo);
+
+      if (solved) {
+        const finalScore = score + gained + timeLeft * 8;
+        setScore(finalScore);
+        setStatus("won");
+        setConfetti(Array.from({ length: 24 }, (_, item) => item));
+        onGameOver({ score: finalScore, won: true });
+      } else {
+        setScore((value) => value + gained);
+      }
+
       return;
     }
 
     setCombo(0);
-    window.setTimeout(() => {
+
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+    }
+
+    timeoutRef.current = window.setTimeout(() => {
       setCards((prev) =>
         prev.map((item, idx) =>
           idx === a || idx === b
@@ -162,6 +176,7 @@ export const MemoryMatch = ({
         ),
       );
       setOpen([]);
+      timeoutRef.current = null;
     }, 520);
   };
 

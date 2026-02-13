@@ -342,7 +342,7 @@ export const AsteroidsPulse = ({
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [difficulty, seed, settings.graphicsQuality, paused, input, audio, onScore, onFps, onPauseToggle, onGameOver]);
+  }, [difficulty, seed, settings.graphicsQuality, input, audio, onScore, onFps, onPauseToggle, onGameOver]);
 
   return <canvas ref={canvasRef} className="mx-auto w-full max-w-[900px] rounded-xl" />;
 };
